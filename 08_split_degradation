@@ -1,5 +1,5 @@
 """
-09_split.py
+08_split_degradation.py
 ==================
 Run this AFTER train_all_models.py has produced all CSV files.
 Produces : Split degradation plot: random → scaffold → clustering per model
