@@ -1,5 +1,5 @@
 """
-06_cluster_size_analysis.py
+05_cluster_size_analysis.py
 ============================
 Analyses the distribution of cluster sizes for the AgglomerativeClustering
 split (n_clusters=150, Ward linkage on standardised Mordred descriptors).
