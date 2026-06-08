@@ -201,34 +201,53 @@ if __name__ == "__main__":
     results = pd.DataFrame(all_rows)
 
     # ── Figure: grouped boxplot ───────────────────────────────────────────────
-    splits  = SPLIT_ORDER
-    metrics = METRIC_ORDER
-    x       = np.arange(len(splits))
-    width   = 0.22
-
-    fig, axes = plt.subplots(1, len(metrics), figsize=(18, 6), facecolor="white")
-    fig.suptitle("Random Forest: Repeated CV Performance by Split Strategy",
-                 fontsize=14, fontweight="bold")
-
-    for ax, metric in zip(axes, metrics):
-        style_ax(ax)
-        offsets = np.linspace(-(len(splits)-1)*width/2,
-                               (len(splits)-1)*width/2, len(splits))
-        for i, split in enumerate(splits):
-            data = results[(results["split"] == split) &
-                           (results["metric"] == metric)]["value"].dropna().values
-            med, top = draw_bp_vertical(ax, data, x[i] + offsets[i], COLOURS[split])
-            ax.text(x[i] + offsets[i], top + 0.015, f"{med:.2f}",
-                    ha="center", va="bottom", fontsize=9, fontweight="bold")
-        ax.set_title(metric, fontsize=13, fontweight="bold")
-        ax.set_xticks(x)
-        ax.set_xticklabels([LABELS[s] for s in splits], fontsize=9, rotation=15)
-        ax.set_ylim(-0.3, 1.1)
-
+    n_metrics = len(METRIC_ORDER)
+    n_splits  = len(SPLIT_ORDER)
+    gap       = 0.28
+    offsets   = np.linspace(-(n_splits - 1) * gap / 2,
+                             (n_splits - 1) * gap / 2, n_splits)
+    group_centres = np.arange(n_metrics, dtype=float)
+ 
+    fig, ax = plt.subplots(figsize=(13, 6), facecolor="white")
+    ax.set_facecolor("white")
+    ax.spines[["top", "right"]].set_visible(False)
+    for sp in ["left", "bottom"]:
+        ax.spines[sp].set_color("black")
+        ax.spines[sp].set_linewidth(1.3)
+    ax.tick_params(colors="black", width=1.2, length=5, labelsize=13)
+    ax.yaxis.grid(True, color="#e5e5e5", linewidth=0.8, zorder=0)
+    ax.set_axisbelow(True)
+ 
+    # Gray background for every metric group
+    for i in range(n_metrics):
+        ax.axvspan(i - 0.5, i + 0.5, color="#efefef", zorder=0)
+ 
+    # Dashed vertical separators
+    for sep in np.arange(n_metrics - 1) + 0.5:
+        ax.axvline(sep, color="#bbbbbb", linewidth=1.0, linestyle="--", zorder=1, alpha=0.7)
+ 
+    for j, sp in enumerate(SPLIT_ORDER):
+        sub = results[results["split"] == sp]
+        for i, met in enumerate(METRIC_ORDER):
+            data = sub[sub["metric"] == met]["value"].dropna().values
+            pos  = group_centres[i] + offsets[j]
+            med, whisker_top = draw_bp_vertical(ax, data, pos, COLOURS[sp], width=0.22)
+            ax.text(pos, whisker_top + 0.015, f"{med:.2f}",
+                    ha="center", va="bottom", fontsize=13,
+                    fontweight="bold", color="black")
+ 
+    ax.set_xticks(group_centres)
+    ax.set_xticklabels(METRIC_ORDER, fontsize=15)
+    ax.set_ylabel("Score", fontsize=15)
+    ax.set_ylim(0.0, 1.15)
+    ax.set_xlim(-0.6, n_metrics - 0.4)
+ 
     handles = [mpatches.Patch(facecolor=COLOURS[s], alpha=0.85, label=LABELS[s])
-               for s in splits]
-    fig.legend(handles=handles, loc="lower center", ncol=3, fontsize=11,
-               frameon=True, edgecolor="#cccccc", bbox_to_anchor=(0.5, -0.06))
+               for s in SPLIT_ORDER]
+    ax.legend(handles=handles, frameon=True, edgecolor="none", facecolor="white",
+              fontsize=13, loc="upper center",
+              bbox_to_anchor=(0.5, -0.08), ncol=3)
+ 
     plt.tight_layout()
     plt.savefig("Figure_grouped_boxplot.png", dpi=300, bbox_inches="tight", facecolor="white")
     plt.close()
@@ -238,34 +257,50 @@ if __name__ == "__main__":
     ep_labels_short = [EP_SHORT.get(ep, ep) for ep in endpoints]
 
     for split in SPLIT_ORDER:
-        fig, axes = plt.subplots(1, len(FIG6_METRICS), figsize=(16, 6), facecolor="white")
-        fig.suptitle(f"Random Forest per Endpoint — {LABELS[split]}",
-                     fontsize=13, fontweight="bold")
+        fig, axes = plt.subplots(1, len(FIG6_METRICS), figsize=(22, 7),
+                                 sharey=True, facecolor="white")
+        plt.subplots_adjust(left=0.18)
+        fig.suptitle(f"{LABELS[split]}",
+                     fontsize=14, fontweight="bold", y=0.98)
         colour = COLOURS[split]
 
         for ax, metric in zip(axes, FIG6_METRICS):
             style_ax(ax, orient="horizontal")
             y_positions = np.arange(len(endpoints))
+            all_vals = results[(results["split"] == split) &
+                               (results["metric"] == metric)]["value"].dropna().values
+            x_max = max(1.0, np.nanmax(all_vals) + 0.20) if len(all_vals) else 1.1
+
             for j, ep in enumerate(endpoints):
                 data = results[(results["split"] == split) &
                                (results["endpoint"] == ep) &
                                (results["metric"] == metric)]["value"].dropna().values
-                if len(data) == 0: continue
-                bp = ax.boxplot([data], positions=[y_positions[j]], widths=0.5,
+                if len(data) == 0:
+                    continue
+                bp = ax.boxplot([data], positions=[y_positions[j]], widths=0.55,
                                 vert=False, patch_artist=True,
-                                medianprops=dict(color="black", linewidth=2),
-                                whiskerprops=dict(color="black", linewidth=1),
-                                capprops=dict(color="black", linewidth=1),
-                                flierprops=dict(marker="o", markersize=3, alpha=0.4),
+                                medianprops=dict(color="black", linewidth=2.2),
+                                whiskerprops=dict(color="black", linewidth=1.2),
+                                capprops=dict(color="black", linewidth=1.2),
+                                flierprops=dict(marker="o", markersize=3.5,
+                                               markerfacecolor="gray",
+                                               markeredgecolor="none", alpha=0.5),
                                 zorder=3)
-                bp["boxes"][0].set_facecolor(colour); bp["boxes"][0].set_alpha(0.8)
+                bp["boxes"][0].set_facecolor(colour)
+                bp["boxes"][0].set_alpha(0.85)
+                med           = float(np.nanmedian(data))
+                whisker_right = bp["whiskers"][1].get_xdata()[1]
+                ax.text(whisker_right + 0.02, y_positions[j], f"{med:.2f}",
+                        va="center", ha="left", fontsize=17, fontweight="bold")
 
-            ax.set_yticks(y_positions)
-            ax.set_yticklabels(ep_labels_short, fontsize=10)
-            ax.set_title(metric, fontsize=12, fontweight="bold")
-            ax.axvline(0, color="black", lw=0.8, ls="--", alpha=0.3)
+            ax.set_xlim(0.0, x_max)
+            ax.set_title(metric, fontsize=17, fontweight="normal", pad=12)
+            ax.tick_params(axis="x", labelsize=14)
 
-        plt.tight_layout()
+        axes[0].set_yticks(np.arange(len(endpoints)))
+        axes[0].set_yticklabels(ep_labels_short, fontsize=20)
+
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
         plt.savefig(f"Figure6_{split}.png", dpi=300, bbox_inches="tight", facecolor="white")
         plt.close()
         print(f"Saved → Figure6_{split}.png")
