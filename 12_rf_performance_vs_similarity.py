@@ -1,5 +1,5 @@
 """
-11_rf_performance_vs_similarity.py
+12_rf_performance_vs_similarity.py
 ====================================
 Trains Random Forest for each split strategy and plots MCC as a function
 of average Tanimoto similarity between test and training sets.
