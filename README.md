@@ -32,7 +32,6 @@ Scripts 01–18 are self-contained and load their own data. They can be run in a
 |------|-------------|
 | `UniTox_with_recovered_typos_v3.csv` | Curated UniTox dataset with resolved canonical SMILES (2,196 small molecules, 8 binary endpoints) |
 | `withdrawn_external_validation.csv` | 153 Withdrawn 2.0 drugs with mapped toxicity endpoints |
-|  | Precomputed Mordred descriptor matrix for UniTox (2,196 × 1,613) |
 
 > `mordred_withdrawn_cached.csv` and `mordred_features_cached.csv` are not included. Run `003_mordred_feature_computation.py` to generate them.
 
