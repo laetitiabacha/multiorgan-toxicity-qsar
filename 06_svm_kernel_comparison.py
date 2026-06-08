@@ -1,5 +1,5 @@
 """
-07_svm_kernel_comparison.py
+06_svm_kernel_comparison.py
 ============================
 Trains SVM with three kernels (Linear, RBF, Polynomial) across all three
 data splits and all 8 endpoints. Produces a grouped bar chart comparing
