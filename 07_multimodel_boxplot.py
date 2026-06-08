@@ -1,5 +1,5 @@
 """
-08_combine_benchmark_results.py
+07_combine_benchmark_results.py
 ================================
 Reads all individual Table2_model_metrics_<model>_<split>.csv files
 produced by 04_train_all_models.py and merges them into one master CSV:
