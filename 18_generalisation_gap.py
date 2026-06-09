@@ -20,6 +20,7 @@ from math import sqrt
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from xgboost import XGBClassifier
 warnings.filterwarnings("ignore")
 
 
@@ -300,7 +301,7 @@ def plot_generalisation_gap(
         bbox_to_anchor=(0.5, 1.22),
         ncol=ncol,
         frameon=True,
-        fontsize=15,
+        fontsize=11,
         borderaxespad=0,
         edgecolor="#cccccc",
     )
@@ -341,7 +342,7 @@ if __name__ == "__main__":
     N_SPLITS             = 5
 
     RF_PARAMS  = dict(n_estimators=300, max_features="sqrt",
-                      class_weight="balanced", random_state=RANDOM_STATE, n_jobs=-1)
+                      class_weight="balanced", random_state=RANDOM_STATE, n_jobs=1)
     XGB_PARAMS = dict(n_estimators=300, eval_metric="logloss",
                       random_state=RANDOM_STATE, n_jobs=-1, verbosity=0)
 
