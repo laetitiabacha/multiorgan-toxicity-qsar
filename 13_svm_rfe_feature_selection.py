@@ -2,26 +2,22 @@
 13_svm_rfe_feature_selection.py
 =================================
 Feature selection via SVM-RFE per toxicity endpoint.
-
 Strategy:
   1. RF importance pre-screen: top 300 features
-  2. SVM-RFE on those 300 → N features (tested at N = 50, 100, 150, 200)
+  2. SVM-RFE on those 300 → N features (tested at N = 50, 100, 150, 200, 250, 300)
   3. Retrain RF on selected features, compare MCC before/after
   4. Best N selected by highest mean test MCC
   5. Union of selected descriptors across endpoints saved for reproducibility
-
 REQUIRES:
   UniTox_with_recovered_typos_v3.csv
   mordred_features_cached.csv
   withdrawn_external_validation.csv
   mordred_withdrawn_cached.csv
-
 PRODUCES:
   rfe_results.csv
   selected_descriptors_rfe.csv
   rfe_comparison_no_overlap.png
 """
-
 import sys, time
 import numpy as np
 import pandas as pd
@@ -45,31 +41,76 @@ WITHDRAWN_MORDRED = "mordred_withdrawn_cached.csv"
 RANDOM_STATE  = 42
 TEST_SIZE     = 0.2
 PRESCREEN_TOP = 300
-RFE_TARGETS   = [50, 100, 150, 200]
+RFE_TARGETS   = [50, 100, 150, 200, 250, 300]
 
 RF_PARAMS = dict(
     n_estimators=200, max_features="sqrt", class_weight="balanced",
-    random_state=RANDOM_STATE, n_jobs=-1,
+    random_state=RANDOM_STATE, n_jobs=1,
 )
 
+# ── TOXTYPE MAPPING (consistent with other scripts) ───────────────────────────
+ALIAS = {
+    "hematological":           "hematological",
+    "renal_toxicity":          "renal_toxicity",
+    "cardiotoxicity":          "cardiotoxicity",
+    "dermatological_toxicity": "dermatological_toxicity",
+    "liver_toxicity":          "liver_toxicity",
+    "pulmonary_toxicity":      "pulmonary_toxicity",
+    "ototoxicity":             "ototoxicity",
+    "infertility":             "infertility",
+}
 
+def build_toxtype_map(endpoints):
+    ep_base = {ep.replace("__binary", ""): ep for ep in endpoints}
+    tmap = {}
+    for token, base in ALIAS.items():
+        if base in ep_base:
+            tmap[token] = ep_base[base]
+    for base, col in ep_base.items():
+        if base not in tmap:
+            tmap[base] = col
+    return tmap
+
+def parse_toxtype(toxtype_str, toxtype_map):
+    if not isinstance(toxtype_str, str):
+        return []
+    matched = set()
+    for token in toxtype_str.split(","):
+        key = token.strip().lower()
+        if key in toxtype_map:
+            matched.add(toxtype_map[key])
+    return list(matched)
+
+# ── DATA LOADING ──────────────────────────────────────────────────────────────
 def load_and_split():
     df = pd.read_csv(TRAIN_FILE)
     df = df.dropna(subset=["SMILES_filled"]).reset_index(drop=True)
     endpoints = sorted([c for c in df.columns if c.endswith("__binary")])
     mordred   = pd.read_csv(MORDRED_FILE)
-    withdrawn = pd.read_csv(WITHDRAWN_FILE)
-    withdrawn = withdrawn.dropna(subset=["smiles"]).reset_index(drop=True)
-    mordred_w = pd.read_csv(WITHDRAWN_MORDRED)
 
+    withdrawn_raw = pd.read_csv(WITHDRAWN_FILE)
+    mordred_w_raw = pd.read_csv(WITHDRAWN_MORDRED)
+
+    # Filter valid SMILES
+    valid_mask = withdrawn_raw["smiles"].notna()
+    withdrawn  = withdrawn_raw[valid_mask].reset_index(drop=True)
+    mordred_w  = mordred_w_raw[valid_mask].reset_index(drop=True)
+
+    # Remove overlap with UniTox training set
+    unitox_smiles = set(df["SMILES_filled"].str.strip())
+    overlap   = withdrawn["smiles"].str.strip().isin(unitox_smiles)
+    withdrawn = withdrawn[~overlap].reset_index(drop=True)
+    mordred_w = mordred_w[~overlap].reset_index(drop=True)
+    print(f"  Removed {overlap.sum()} overlaps, {len(withdrawn)} withdrawn drugs remain",
+          flush=True)
+
+    # Assign ground truth labels using ALIAS-based toxtype mapping
+    toxtype_map = build_toxtype_map(endpoints)
     for ep in endpoints:
         withdrawn[ep] = 0
     for i, row in withdrawn.iterrows():
-        if isinstance(row["toxtype"], str):
-            for ep in endpoints:
-                if ep.replace("__binary", "") in [t.strip().lower()
-                                                   for t in row["toxtype"].split(",")]:
-                    withdrawn.at[i, ep] = 1
+        for ep in parse_toxtype(row["toxtype"], toxtype_map):
+            withdrawn.at[i, ep] = 1
 
     train_idx, test_idx = train_test_split(
         np.arange(len(df)), test_size=TEST_SIZE, random_state=RANDOM_STATE)
@@ -84,7 +125,7 @@ def load_and_split():
     X_ext = mordred_w.reset_index(drop=True).select_dtypes(
                 include=[np.number]).reindex(columns=cols, fill_value=0)
 
-    med = X_tr.median()
+    med   = X_tr.median()
     X_tr  = X_tr.fillna(med).values
     X_te  = X_te.fillna(med).values
     X_ext = X_ext.fillna(med).values
@@ -114,6 +155,7 @@ def main():
     X_tr, X_te, X_ext, y_tr, y_te, y_ext, endpoints, cols = load_and_split()
     n_feat_total = X_tr.shape[1]
     ep_short = [ep.replace("__binary", "").replace("_", " ").title() for ep in endpoints]
+
     print(f"Train: {X_tr.shape} | Test: {X_te.shape} | Ext: {X_ext.shape}", flush=True)
     print(f"Features after variance filter: {n_feat_total}", flush=True)
 
@@ -128,11 +170,8 @@ def main():
     # ── Per-endpoint: RF pre-screen → SVM-RFE ─────────────────────────────────
     scaler   = StandardScaler()
     X_tr_sc  = scaler.fit_transform(X_tr)
-    X_te_sc  = scaler.transform(X_te)
-    X_ext_sc = scaler.transform(X_ext)
 
     results  = {n: {} for n in RFE_TARGETS}
-    # Store sel_idx per endpoint per N for descriptor export
     sel_idxs = {n: {} for n in RFE_TARGETS}
 
     for ep, name in zip(endpoints, ep_short):
@@ -180,11 +219,10 @@ def main():
         print(f"  N={n:>3}: mean test MCC = {mean_per_n[n]:+.3f}", flush=True)
     baseline_mean = np.mean(list(base_test.values()))
     print(f"  ALL : mean test MCC = {baseline_mean:+.3f} (baseline)", flush=True)
-
     best_n = max(mean_per_n, key=mean_per_n.get)
     print(f"\nBest N = {best_n} (mean MCC = {mean_per_n[best_n]:+.3f})", flush=True)
 
-    # ── Save selected descriptor names (union across endpoints at best N) ──────
+    # ── Save selected descriptor names ────────────────────────────────────────
     all_selected = sorted(set(
         cols[i]
         for ep in endpoints
@@ -212,7 +250,6 @@ def main():
             "MCC_ext_rfe":         round(er, 3),
             "Delta_MCC_ext":       round(er - ef, 3),
         })
-
     mef = np.mean(list(base_ext.values()))
     mer = np.mean([results[N][ep][1] for ep in endpoints])
     rows.append({
@@ -226,7 +263,6 @@ def main():
         "MCC_ext_rfe":         round(mer, 3),
         "Delta_MCC_ext":       round(mer - mef, 3),
     })
-
     results_df = pd.DataFrame(rows)
     results_df.to_csv("rfe_results.csv", index=False)
     print(f"\nSaved: rfe_results.csv", flush=True)
@@ -276,13 +312,12 @@ def main():
     ax1.set_title("Performance Comparison", fontsize=16, pad=15)
     ax1.set_xlim(0, 0.9)
     ax1.invert_yaxis()
-    ax1.legend(loc="lower right", frameon=True, fontsize=13, edgecolor="#cccccc")
+    ax1.legend(loc="upper right", frameon=True, fontsize=13, edgecolor="#cccccc")
     ax1.xaxis.grid(True, linestyle="--", alpha=0.5, zorder=0)
 
     deltas = test_rfe - test_all
     colors = [("#27ae60" if d >= 0 else "#c0392b") for d in deltas]
     ax2.barh(y, deltas, 0.6, color=colors, alpha=0.8, edgecolor="black", linewidth=0.5)
-
     for i, d in enumerate(deltas):
         ha     = "left"  if d >= 0 else "right"
         offset = 0.002   if d >= 0 else -0.002
