@@ -161,12 +161,10 @@ ax.scatter(Z_uni[:, 0], Z_uni[:, 1], s=12, alpha=0.35, color="#4A90D9",
            label=f"UniTox (n={len(Z_uni)})", zorder=2)
 ax.scatter(Z_wit[:, 0], Z_wit[:, 1], s=20, alpha=0.70, color="#E85C5C",
            marker="^", label=f"Withdrawn 2.0 (n={len(Z_wit)})", zorder=3)
-ax.set_xlabel(f"PC1 ({ev[0]*100:.1f}% variance explained)", fontsize=13)
-ax.set_ylabel(f"PC2 ({ev[1]*100:.1f}% variance explained)", fontsize=13)
-ax.set_title("Chemical Space — Mordred Descriptor PCA\n"
-             "PCA fitted on UniTox; Withdrawn projected onto same axes",
-             fontsize=12, fontweight="bold")
-ax.legend(fontsize=12, framealpha=0.9)
+ax.set_xlabel(f"PC1 ({ev[0]*100:.1f}% variance explained)", fontsize=16, fontweight="normal")
+ax.set_ylabel(f"PC2 ({ev[1]*100:.1f}% variance explained)", fontsize=16, fontweight="normal")
+
+ax.legend(fontsize=16, framealpha=0.9)
 ax.set_facecolor("#F8F8F8")
 ax.grid(linestyle="--", alpha=0.3)
 plt.tight_layout()
@@ -181,13 +179,13 @@ pcs = range(1, N_COMPONENTS + 1)
 ax1.bar(pcs, ev * 100, color="#4A90D9", alpha=0.7, label="Individual")
 ax2.plot(pcs, np.cumsum(ev) * 100, color="#E85C5C",
          marker="o", linewidth=2, markersize=5, label="Cumulative")
-ax1.set_xlabel("Principal Component", fontsize=13)
-ax1.set_ylabel("Explained Variance (%)", fontsize=13, color="#4A90D9")
-ax2.set_ylabel("Cumulative Explained Variance (%)", fontsize=12, color="#E85C5C")
+ax1.set_xlabel("Principal Component", fontsize=18,fontweight="normal")
+ax1.set_ylabel("Explained Variance (%)", fontsize=18, color="#4A90D9", fontweight="normal")
+ax2.set_ylabel("Cumulative Explained Variance (%)", fontsize=18, color="#E85C5C", fontweight="normal")
 ax1.set_xticks(list(pcs))
 l1, lb1 = ax1.get_legend_handles_labels()
 l2, lb2 = ax2.get_legend_handles_labels()
-ax1.legend(l1 + l2, lb1 + lb2, fontsize=12, loc="center right",
+ax1.legend(l1 + l2, lb1 + lb2, fontsize=16, loc="center right",
            bbox_to_anchor=(0.98, 0.5), frameon=True, facecolor="white")
 plt.tight_layout()
 fig.savefig("pca_scree_mordred.png", dpi=200, bbox_inches="tight")
@@ -236,12 +234,10 @@ ax.text(OOD_THRESHOLD + 0.01, ax.get_ylim()[1] * 0.85,
         f"{pct_ood:.0f}% of Withdrawn drugs\nhave max Tanimoto < {OOD_THRESHOLD}",
         fontsize=9, color="#E85C5C")
 ax.set_xlabel("Tanimoto Similarity to nearest UniTox compound\n"
-              "(Morgan fingerprints, radius=2, 2048 bits)", fontsize=11)
-ax.set_ylabel("Number of Withdrawn drugs", fontsize=11)
-ax.set_title("Chemical Similarity: Withdrawn 2.0 vs UniTox\n"
-             "(Tanimoto on Morgan FP; all UniTox molecules included)",
-             fontsize=12, fontweight="bold")
-ax.legend(fontsize=9)
+              "(Morgan fingerprints, radius=2, 2048 bits)", fontsize=11, fontweight="normal")
+ax.set_ylabel("Number of Withdrawn drugs", fontsize=11, fontweight="normal")
+
+ax.legend(fontsize=13)
 ax.set_facecolor("#F8F8F8")
 ax.grid(axis="y", linestyle="--", alpha=0.3)
 plt.tight_layout()
