@@ -44,7 +44,7 @@ PRESCREEN_TOP = 300
 RFE_TARGETS   = [50, 100, 150, 200, 250, 300]
 
 RF_PARAMS = dict(
-    n_estimators=200, max_features="sqrt", class_weight="balanced",
+    n_estimators=100, max_features="sqrt", class_weight="balanced",
     random_state=RANDOM_STATE, n_jobs=1,
 )
 
