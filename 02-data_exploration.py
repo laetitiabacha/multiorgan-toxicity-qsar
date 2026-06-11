@@ -1,11 +1,5 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[5]:
-
-
 """
-01_data_exploration
+02_data_exploration
 ======================
 Produces all data characterisation figures for the report.
 Figures produced:
